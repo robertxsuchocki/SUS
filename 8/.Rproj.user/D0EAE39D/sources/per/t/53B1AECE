@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1525546472525.000,
+    "dirty" : true,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3298456069",
+    "id" : "53B1AECE",
+    "lastKnownWriteTime" : 1524945354,
+    "last_content_update" : 1525617462923,
+    "path" : "~/Code/SUS/8/lab8_gr5_RoughSets.r",
+    "project_path" : "lab8_gr5_RoughSets.r",
+    "properties" : {
+        "cursorPosition" : "14,16",
+        "scrollLine" : "0"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

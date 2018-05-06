@@ -1,0 +1,218 @@
+#lab grup 5, unit 7: decision rules and rule systems
+#autor: Andrzej Janusz, translated by M. Szczuka
+
+#1. Examples of decision rules.
+#2. Rule quality measures.
+#3. Sequential rule covering algorithms.
+#4. "Lazy" rules.
+
+#We start with building a decision tree for a set of data - lymphography
+#install.packages("e1071","rpart")
+library(e1071)
+library(rpart)
+dataSet = read.table(file = "/home/robert/Code/SUS/7/lymphography_processed.data", header = T, sep='\t', row.names=NULL)
+dim(dataSet)
+
+bestGiniModel = tune.rpart(class~., data = dataSet, parms = list(split = "gini"), 
+                           minsplit = seq(2,20,2), cp = c(0.1,0.05,0.02,0.01,0.005), 
+                           tunecontrol = tune.control(nrepeat = 10, cross = 10, repeat.aggregate = mean))
+bestInfoModel = tune.rpart(class~., data = dataSet, parms = list(split = "information"), 
+                           minsplit = seq(2,20,2), cp = c(0.1,0.05,0.02,0.01,0.005), 
+                           tunecontrol = tune.control(nrepeat = 2, cross = 10, repeat.aggregate = mean))
+                           
+plot(bestGiniModel)
+plot(bestGiniModel, type="perspective")
+X11()
+plot(bestInfoModel)
+plot(bestInfoModel, type="perspective")
+X11()
+
+bestGiniModel
+bestInfoModel
+
+#Decision rules
+#Example of rules:
+rpartModel = rpart(class~., dataSet, method = "class", parms = list(split = "gini"), 
+                   control = rpart.control(minsplit = 8, cp = 0.01))
+par(xpd=NA)
+plot(rpartModel)
+text(rpartModel, use.n = T, pretty=0)
+#Each path from root to leaf in a decision tree corresponds to a decision rule.
+
+#another example:
+fix(dataSet)
+tmpDataSet = dataSet[1:5]
+fix(tmpDataSet)
+#Each row in a decision table corresponds to a rule.
+
+#Not all rules make sense. How to select "good" ones?
+ruleCandidate = tmpDataSet[1,-1]
+#Say, we want to check the quality (goodness) of the rule "ruleCandidate => class = "malign lymph"
+
+#Let N be the number of cases matching the ruleCandidate,
+#Let Nd be the number of cases matching the ruleCandidate with a decision value class = "malign lymph".
+
+N = sum(apply(tmpDataSet, 1, function(x,y) return(all(x[-1] == y)), ruleCandidate))
+
+Nd = sum(apply(tmpDataSet, 1, function(x,y) return(all(x[-1] == y) & x[1] == "malign lymph"), ruleCandidate))
+
+#some examples of rule quality measures
+#Rule support:
+N/nrow(tmpDataSet)
+
+#Rule confidence:
+Nd/N
+
+#Lift:
+(Nd/N)/mean(tmpDataSet$class == "malign lymph")
+
+#Laplace estimate:
+(Nd + 1)/(N + length(unique(tmpDataSet$class)))
+
+#Lab task 1:
+#In the tmpDataSet data find a row that corresponds to a rule with a highest value Laplace estimate.
+#calculate support, confidence, and lift for this rule.
+
+laplaceForRow <- function (nr, dataSet) {
+  row = dataSet[nr,]
+  rule = row[-1]
+
+  N  = sum(apply(dataSet, 1, function(x,y) return(all(x[-1] == y)), rule))
+  Nd = sum(apply(dataSet, 1, function(x,y) return(all(x[-1] == y) & x[1] == row$class), rule))
+
+  return((Nd + 1)/(N + length(unique(dataSet$class))))
+}
+
+restForRow <- function (nr, dataSet) {
+  row = dataSet[nr,]
+  rule = row[-1]
+  result = list()
+
+  N  = sum(apply(dataSet, 1, function(x,y) return(all(x[-1] == y)), rule))
+  Nd = sum(apply(dataSet, 1, function(x,y) return(all(x[-1] == y) & x[1] == row$class), rule))
+  
+  result["Max index"] = nr
+  result["Rule support"] = N/nrow(dataSet)
+  result["Rule confidence"] = Nd/N
+  result["Lift"] = (Nd/N)/mean(dataSet$class == row$class)
+  
+  return(result)
+}
+
+results = list()
+for (i in 1:nrow(tmpDataSet)) {
+  results[i] = laplaceForRow(i, tmpDataSet)
+}
+
+restForRow(which.max(results), tmpDataSet)
+
+#Rule-based classifiers, rule systems:
+#Each set of rules corresponds to a classifier. Algorithms for generating rule sets
+#ususally attempt to generate small sets of valuable (good quality) rules that together cover all objects in data. 
+
+#Example:  CN2 algorithm
+#CN2 is a greedy, covering-based algorithm. It applies a "separate and conquer" paradigm and "beam search" approach. 
+#In each iteration it tries to find a best (highest quality) rule that covers objects in the dataset (conquer step). 
+#Once covered, objects are removed from data for next iteration (separate step).
+#The rule quality measure most commonly used in CN2 is Laplace estimate..
+#To reduce the search space the CN2 remembers K best rules checked in the previous iteration (beam search).
+
+#Below an exmple of a procedure selecting the best rule for CN2.
+#Rules are represented as a list consiting of: 
+#idx - attribute indexes (vector)
+#values - values of attributes with indexes from  idx (vector)
+#laplace - value of Laplace estimate for the rule.
+
+#Function to calculate Laplace estimate
+laplaceEstimate = function(rule, dataS, clsVec, uniqueCls) {
+    
+    if(length(rule$idx) > 1) suppIdx = which(apply(dataS[rule$idx], 1, function(x,y) return(all(x == y)), rule$values))
+    else suppIdx = which(dataS[[rule$idx]] == rule$values)
+    clsFreqs = table(clsVec[suppIdx])
+    maxIdx = which.max(clsFreqs)
+    nOfCorrect = clsFreqs[maxIdx]
+    
+    rule$consequent = names(clsFreqs)[maxIdx]
+    rule$support = as.integer(suppIdx)
+    rule$laplace = (nOfCorrect + 1)/(length(suppIdx) + length(uniqueCls))
+    return(rule)   
+}
+
+#auxiliary function for finding rule candidates
+addDescriptor = function(rulesList, descCandidates) {
+     
+    candidates = list()
+    for(i in 1:length(rulesList)) {
+        candidates = c(candidates, 
+                       lapply(descCandidates, 
+                              function(descriptor, rule) return(list(idx = c(rule$idx, descriptor$idx), 
+                                                                     values = c(as.character(rule$values), as.character(descriptor$values)))), 
+                              rulesList[[i]]))
+    }
+    
+    return(candidates)
+}
+
+#function for identifying the best rule
+findBestRule = function(dataSet, clsVec, uniqueCls, K = 10)  {
+
+    descriptorsList = lapply(dataSet, function(x) sort(unique(x)))
+    
+    descriptorCandidates = list()
+    for(i in 1:length(descriptorsList)) {
+        descriptorCandidates = c(descriptorCandidates, 
+                                 lapply(descriptorsList[[i]], 
+                                        function(v, x) return(list(idx = x, values = v)), i))
+    }
+    
+    ruleCandidates = lapply(descriptorCandidates, laplaceEstimate, dataSet, clsVec, uniqueCls) 
+    
+    endFlag = F
+    ruleScores = sapply(ruleCandidates, function(x) return(x$laplace))
+    bestIdx = which.max(ruleScores)
+    bestRule = ruleCandidates[[bestIdx]]
+    ruleCandidates = ruleCandidates[order(ruleScores, decreasing = T)[1:K]]
+    
+    while(!endFlag) {
+    
+        ruleCandidates = addDescriptor(ruleCandidates, descriptorCandidates)
+        ruleCandidates = lapply(ruleCandidates, laplaceEstimate, dataSet, clsVec, uniqueCls)
+        ruleScores = sapply(ruleCandidates, function(x) return(x$laplace))
+        
+        if(bestRule$laplace < max(ruleScores)) {
+            bestIdx = which.max(ruleScores)
+            bestRule = ruleCandidates[[bestIdx]]
+            ruleCandidates = ruleCandidates[order(ruleScores, decreasing = T)[1:K]]    
+        } else endFlag = T
+    
+    }
+    return(bestRule)
+}
+
+#additional variables
+uncoveredObjIdx = 1:nrow(dataSet)    #store indexes of non-covered objects
+K = 10                               #number of rules "remembered" in the next iteration 
+
+bestRule = findBestRule(dataSet[uncoveredObjIdx,-1], dataSet[[1]], sort(unique(dataSet[[1]])), K)
+
+bestRule
+
+#Lab task 2:
+#Finish the implementation of CN2, i.e., write a function that covers the data set 
+#with rules. The result should be a list of decision rules.
+
+#With rule set generated by CN2 we predict the decision using the "best wins" principle.
+#Rules are applied to a new case in the order they were discovered by CN2. Once a rule covers the case its decision stands.
+
+uncoveredObjIdx = 1:nrow(tmpDataSet)
+rules <- list()
+tmpDataSet = dataSet
+
+while (length(uncoveredObjIdx) > 0) {
+  uncoveredObjIdx = 1:nrow(tmpDataSet)
+  nextRule = findBestRule(tmpDataSet[1:nrow(tmpDataSet),-1], tmpDataSet[[1]], sort(unique(tmpDataSet[[1]])), 10)
+  rules = c(rules, nextRule)
+  uncoveredObjIdx = uncoveredObjIdx[!uncoveredObjIdx %in% nextRule$support]
+  tmpDataSet = tmpDataSet[uncoveredObjIdx,]
+  print(length(uncoveredObjIdx))
+}

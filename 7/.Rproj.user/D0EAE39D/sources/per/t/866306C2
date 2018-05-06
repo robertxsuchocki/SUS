@@ -1,0 +1,22 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1524505819899.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "326375743",
+    "id" : "866306C2",
+    "lastKnownWriteTime" : 1524561974,
+    "last_content_update" : 1524561974164,
+    "path" : "~/Code/SUS/7/lab7_gr5_DecisionRules.R",
+    "project_path" : "lab7_gr5_DecisionRules.R",
+    "properties" : {
+        "cursorPosition" : "204,68",
+        "scrollLine" : "163"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
