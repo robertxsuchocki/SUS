@@ -73,16 +73,16 @@ IND
 #using relation IND (do not use dedicated function from RoughSets package yet).
 
 relation = IND[["IND.relation"]]
-lower_nymph = list()
+class = "malign lymph"
 upper_nymph = list()
+lower_nymph = list()
 
 for (name in names(relation)) {
-  classes = dataSet[relation[[name]],]$class
-  if (length(unique(classes)) == 1 && classes[1] == "malign lymph") {
-    lower_nymph = c(lower_nymph, name, relation[[name]])
-  }
-  if ("malign lymph" %in% classes) {
+  if (class %in% dataSet[relation[[name]],]$class) {
     upper_nymph = c(upper_nymph, name, relation[[name]])
+  }
+  if (all(dataSet[relation[[name]],]$class == class)) {
+    lower_nymph = c(lower_nymph, name, relation[[name]])
   }
 }
 
