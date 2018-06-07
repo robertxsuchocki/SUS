@@ -392,44 +392,49 @@ rm(list = ls()); gc()
 # Take the cross-section of the tree that results in the number of clusters that was optimal in Task 1. 
 # Check uniformity of these clusters w.r.t decision.
 
-rm(list = ls())
 
-present_results = function(class, cluster, cluster_num) {
-  cat(cluster_num, "\tgood\tbad\tamount\n")
-  for(i in 1:cluster_num) {
-    cluster_i = which(cluster == i)
-    good_per = length(intersect(cluster_i, which(class == "g"))) / length(cluster_i)
-    bad_per = length(intersect(cluster_i, which(class == "b"))) / length(cluster_i)
-    cat(i, round(good_per, digits=4), round(bad_per, digits=4), length(cluster_i), "\n", sep="\t")
-  }
-}
-
+install.packages("cluster")
+install.packages("proxy")
 install.packages("foreign")
+
 library(cluster)
-library("foreign")
+library(proxy)
+library(foreign)
 
-data = read.arff("/home/robert/Code/SUS/11/ionosphere.arff")
-class = data$class
-ionosphere = as.data.frame(scale(data[-c(2, ncol(data))],T,T))
-pca = prcomp(ionosphere)
 
-# Task 1
+ionosphere = read.arff("/home/robert/Code/SUS/11/ionosphere.arff")
+class = ionosphere$class
+ionosphere = ionosphere[-c(2, ncol(ionosphere))]
 
-sil_vec = rep(0,20)
+
+silhouetteVec = rep(0,20)
 for(i in 2:20)  {
   clustering = kmeans(ionosphere, centers = i, iter.max = 20, nstart = 150)
-  sil_vec[i] = mean(silhouette(clustering$clust, dist(ionosphere))[,3])
+  silhouetteVec[i] = mean(silhouette(clustering$clust, dist(ionosphere))[,3])
+  cat(i, silhouetteVec[i], "\n", sep="\t")
 }
-cluster_num = which.max(sil_vec)
+cat("According to silhouette coefficient the  division into  ", which.max(silhouetteVec), " groups is optimal \n", sep="")
 
-clustering = kmeans(ionosphere, centers = cluster_num, iter.max = 20, nstart = 150)
-plot(pca$x, col = (1:cluster_num + 1)[clustering$cluster], main="kmeans - clustering into optimal amount of groups")
-present_results(class, clustering$cluster, cluster_num)
 
-# Task 2
+pca = prcomp(ionosphere)
+clustering = kmeans(ionosphere, centers = which.max(silhouetteVec), iter.max = 20, nstart = 150)
+plot(pca$x, col = (1:which.max(silhouetteVec) + 1)[clustering$cluster])
+
+for(i in 1:4) {
+  g = length(intersect(which(clustering$cluster == i), which(class == "g")))
+  b = length(intersect(which(clustering$cluster == i), which(class == "b")))
+  cat(g, b, "\n", sep=" ")
+}
+
 
 distM = dist(ionosphere, method = "euclidean")
 
 agnesClustComplete = agnes(distM, method = "complete")
-plot(pca$x, col = cutree(agnesClustComplete, k = cluster_num) + 1, main="agnes - clustering into optimal amount of groups")
-present_results(class, cutree(agnesClustComplete, k = cluster_num), cluster_num)
+plot(pca$x, col = cutree(agnesClustComplete, k = which.max(silhouetteVec)) + 1)
+cluster = cutree(agnesClustComplete, k = which.max(silhouetteVec))
+
+for(i in 1:4) {
+  g = length(intersect(which(cluster == i), which(class == "g")))
+  b = length(intersect(which(cluster == i), which(class == "b")))
+  cat(g, b, "\n", sep=" ")
+}
