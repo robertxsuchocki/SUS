@@ -41,12 +41,9 @@ def create_files(dict):
         length = len(lines)
         for i, line in enumerate(lines):
             splitted = line.split('\t')
-            with open(dict['folder'] + splitted[0], 'w') as file:
+            with open(dict['folder'] + str(i + 1) + '.txt', 'w') as file:
                 if dict['tags']:
-                    file.write(str(i) + ',')
                     file.write(','.join(splitted[2].split(',')[:-1]) + '\n')
-                else:
-                    file.write(str(i) + '\n')
                 counter = Counter(prep_text(splitted[1]))
                 for key, value in counter.most_common():
                     file.write(str(value) + ',' + str(key) + '\n')

@@ -9,37 +9,46 @@ TRAIN_DIR = './DM2018_train/'
 
 TAG_DIR = './DM2018_tags/'
 
-tag_counters = {}
-files = os.listdir(TRAIN_DIR)
-length = len(files)
-for i, file in enumerate(files):
-    with open(TRAIN_DIR + file, 'r') as file:
-        lines = [line[:-1] for line in file.readlines()]
-        index = lines[0].split(',')[0]
-        tags = lines[0].split(',')[1:]
-        for tag in tags:
-            for line in lines[1:]:
-                count = int(line.split(',')[0])
-                word = line.split(',')[1]
-                if tag not in tag_counters:
-                    tag_counters[tag] = Counter()
-                tag_counters[tag].update({word: count})
-    percent = (i + 1) * 100 / length
-    status = str(i + 1) + '/' + str(length) + ' - ' + str(percent) + '%\r'
-    sys.stdout.write('%s\r' % status)
-    sys.stdout.flush()
-sys.stdout.write('\n')
-sys.stdout.flush()
+CSV_DIR = './DM2018_csv/'
 
-length = len(tag_counters)
-for tag in tag_counters:
-    with open(TAG_DIR + tag + '.txt', 'w') as file:
-        counter = Counter(tag_counters[tag])
-        for key, value in counter.most_common():
-            file.write(str(value) + ',' + str(key) + '\n')
+def gen_ranks(words, lines):
+    ranks = []
+    for word in words:
+        for line in lines:
+            if word == line[:-1].split(',')[1]:
+                ranks.append(line[:-1].split(',')[0])
+                break
+        else:
+            ranks.append('0')
+    assert(len(ranks) == len(words))
+    return ranks
+
+
+files = os.listdir(TAG_DIR)
+length = len(files)
+for i, file_name in enumerate(files):
+    with open(TAG_DIR + file_name, 'r') as file:
+        with open(CSV_DIR + 'train_' + file_name, 'w') as csv:
+            words = [line[:-1].split(',')[1] for line in file.readlines()[:50]]
+            csv.write(','.join(words) + ',outcome\n')
+            for j in range(1, 100001):
+                with open(TRAIN_DIR + str(j) + '.txt', 'r') as train:
+                    lines = train.readlines()
+                    ranks = gen_ranks(words, lines[1:101])
+                    outcome = str(int(file_name[:-4] in lines[0].split(',')))
+                    csv.write(','.join(ranks + [outcome]) + '\n')
+        with open(CSV_DIR + 'test_' + file_name, 'w') as csv:
+            words = [line[:-1].split(',')[1] for line in file.readlines()[:50]]
+            csv.write(','.join(words) + '\n')
+            for j in range(1, 100001):
+                with open(TEST_DIR + str(j) + '.txt', 'r') as train:
+                    lines = train.readlines()
+                    ranks = gen_ranks(words, lines[:100])
+                    csv.write(','.join(ranks) + '\n')
     percent = (i + 1) * 100 / length
     status = str(i + 1) + '/' + str(length) + ' - ' + str(percent) + '%\r'
     sys.stdout.write('%s\r' % status)
     sys.stdout.flush()
+    break
 sys.stdout.write('\n')
 sys.stdout.flush()
