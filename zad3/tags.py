@@ -4,10 +4,10 @@ import re
 import os
 import sys
 
-TEST_DIR = './DM2018_test/'
-TRAIN_DIR = './DM2018_train/'
+TEST_DIR = '/home/robert/Code/SUS/zad3/data/test/'
+TRAIN_DIR = '/home/robert/Code/SUS/zad3/data/train/'
 
-TAG_DIR = './DM2018_tags/'
+TAG_DIR = '/home/robert/Code/SUS/zad3/data/tags/'
 
 tag_counters = {}
 files = os.listdir(TRAIN_DIR)

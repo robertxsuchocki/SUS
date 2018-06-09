@@ -4,17 +4,23 @@ import re
 import os
 import sys
 
+from nltk.stem import PorterStemmer
+from nltk.tokenize import sent_tokenize, word_tokenize
+
+ps = PorterStemmer()
+
+
 IGNORED = ['the', 'and', 'a', 'that', 'I', 'it', 'not', 'he', 'as', 'you', 'this', 'but', 'his', 'they', 'her', 'she', 'or', 'an', 'will', 'my', 'would', 'there', 'their', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'up', 'about', 'into', 'over', 'after', 'be', 'have', 'do', 's', 'is', 'we', 'are', 'can', 'which', 'our', 'has', 'its', 'was', 'were']
 
 TEST = {
-    'file' : 'DM2018_test_docs.txt',
-    'folder' : './DM2018_test/',
+    'file' : '/media/robert/My Passport/DM2018/test_docs.txt',
+    'folder' : '/home/robert/Code/SUS/zad3/data/test/',
     'tags': False
 }
 
 TRAIN = {
-    'file' : 'DM2018_training_docs_and_labels.txt',
-    'folder' : './DM2018_train/',
+    'file' : '/media/robert/My Passport/DM2018/training_docs_and_labels.txt',
+    'folder' : '/home/robert/Code/SUS/zad3/data/train/',
     'tags': True
 }
 
@@ -27,12 +33,12 @@ def prep_word(word):
     word = word.strip()
     if word.istitle():
         word = word.lower()
-    return word
+    return ps.stem(word)
 
 def prep_text(input):
     words = re.sub('[^\w]', ' ', re.sub('<[^>]*>', '', input)).split()
-    words = map(prep_word, words)
     words = [word for word in words if word not in IGNORED]
+    words = map(prep_word, words)
     return words
 
 def create_files(dict):
