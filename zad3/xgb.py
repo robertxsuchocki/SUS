@@ -34,12 +34,22 @@ length = len(files)
 predicts = {}
 for i in range(100000):
     predicts[i] = list()
+maxes = {}
+for i in range(100000):
+    maxes[i] = -1
+solo_tags = {}
+for i in range(100000):
+    solo_tags[i] = ""
 for i, file in enumerate(files):
     tag = file[:-4]
     result = predict_tags(file)
     with open(TRAIN_FILE, 'r') as train:
         count = text.count(tag + ',') + 1
     limit = sorted(result)[-count]
+    for k in range(100000):
+        if maxes[k] < result[k]:
+            maxes[k] = result[k]
+            solo_tags[k] = tag
     if limit < 0.0001:
         indexes = []
     else:
@@ -55,4 +65,6 @@ sys.stdout.flush()
 
 with open(DIR + 'result.txt', 'w') as file:
     for i in range(100000):
+        if solo_tags[i] not in predicts[i]:
+            predicts[i].append(solo_tags[i])
         file.write(','.join(predicts[i]) + '\n')
