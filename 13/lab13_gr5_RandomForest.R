@@ -142,10 +142,26 @@ varImpPlot(Glass.rf)
 #Using 5-fold cross validation on  "WBC" data compare the  accuracy of model obtained from randomForest with  gbm (version of adaBoost) 
 #that uses rpart trees as  component models and with a C5.0 tree.
 
-dataSet = Glass
+library(rpart)
+library(mlbench)
+library(adabag)
+library(randomForest)
+library(gbm)
+library(C50)
+
+dataSet = read.table(file = "wdbc.data", header = F, sep=',', row.names=1, na.strings="?")
+rownames(dataSet) = NULL
+colnames(dataSet) = c("decision",
+                      paste(c(rep("mean",10), rep("SE",10), rep("worst",10)),
+                            rep(c("radius", "texture", "perimeter", "area",
+                                  "smoothness", "compactness", "concavity",
+                                  "concave_points", "symmetry", "fractal_dimension"),3),
+                            sep="_"))
+decisionColNum = grep("decision",names(dataSet))
+
 set.seed(42)
 dataSet = dataSet[sample(nrow(dataSet)),]
-folds = cut(seq(1,nrow(dataSet)),breaks=10,labels=FALSE)
+folds = cut(seq(1,nrow(dataSet)),breaks=5,labels=FALSE)
 rf_mean = 0
 gbm_mean = 0
 cfive_mean = 0
@@ -154,19 +170,28 @@ for(i in 1:5){
   testData = dataSet[testIndexes,]
   trainData = dataSet[-testIndexes,]
   
-  rf_model = randomForest(Type ~., data = trainData, importance=TRUE, xtest=testData[,-typeColNum],ntree=50)
-  rf_mean = rf_mean + (mean(rf_model$test$predicted==testData$Type) / 5)
+  rf_model = randomForest(decision ~., data=trainData, importance=TRUE, xtest=testData[,-decisionColNum], ntree=50)
+  rf_mean = rf_mean + (mean(rf_model$test$predicted==testData$decision) / 5)
   
-  gbm_model = gbm(Type ~., data = trainData, distribution = "gaussian", n.trees = 10000)
-  gbm_pred = predict(gbm_model, testData[,-typeColNum], n.trees = 10000)
-  gbm_mean = mean_sum + (mean(gbm_pred==testData$Type) / 5)
+  cfive_model = C50::C5.0(trainData[,-decisionColNum], trainData[,decisionColNum])
+  cfive_pred = predict(cfive_model, testData[,-decisionColNum])
+  cfive_mean = cfive_mean + (mean(cfive_pred==testData$decision) / 5)
   
-  cfive_model = C50::C5.0(trainData[,-typeColNum], trainData[,typeColNum])
-  cfive_pred = predict(cfive_model, testData[,-typeColNum])
-  cfive_mean = cfive_mean + (mean(cfive_pred==testData$Type) / 5)
+  trainData$decision = as.integer(trainData$decision == "M")
+  testData$decision = as.integer(testData$decision == "M")
+  gbm_model = gbm(decision ~., data = trainData, shrinkage=0.01, distribution='bernoulli', n.trees=10000)
+  gbm_pred = predict(gbm_model, testData[,-decisionColNum], n.trees = 10000)
+  gbm_pred = as.integer(gbm_pred > 0.5)
+  gbm_mean = gbm_mean + (mean(gbm_pred==testData$decision) / 5)
 }
 
 print(rf_mean)
 print(gbm_mean)
 print(cfive_mean)
 
+#> print(rf_mean)
+#[1] 0.9648502
+#> print(gbm_mean)
+#[1] 0.9754075
+#> print(cfive_mean)
+#[1] 0.9314547
